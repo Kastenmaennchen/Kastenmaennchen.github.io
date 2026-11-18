@@ -235,6 +235,27 @@ label.drop input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 /* ---------- Über uns ---------- */
 .about { max-width: 62ch; }
 .signature { font: 700 2rem/1 'Caveat', cursive; margin-top: var(--sq); }
+.follow { margin-top: calc(var(--sq) * 2); }
+.follow-links { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sq); }
+.follow-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 250px;
+  padding: 10px 20px 10px 14px;
+  color: var(--ink);
+  text-decoration: none;
+  border: 2px solid var(--ink);
+  border-radius: var(--wobble-a);
+  transform: rotate(-0.8deg);
+  transition: background-color .15s, transform .15s;
+}
+.follow-links li + li .follow-link { border-radius: var(--wobble-b); transform: rotate(0.7deg); }
+.follow-link:hover { background: var(--wash); transform: rotate(0deg); }
+.follow-link svg { flex: none; width: 48px; height: 40px; fill: none; stroke: var(--ink); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.follow-link strong { display: block; font: 700 1.7rem/1.1 'Caveat', cursive; color: var(--ink-deep); }
+.follow-sub { display: block; font-size: .95rem; }
+@media (prefers-reduced-motion: reduce) { .follow-link { transition: none; } }
 
 footer {
   margin-top: calc(var(--sq) * 5);
@@ -523,11 +544,33 @@ label.check input { width: 20px; height: 20px; margin: 0; flex: none; accent-col
       <h2 id="h-about">Über uns</h2>
       <div class="about" id="about-text"></div>
       <p class="signature" id="about-signature"></p>
+
+      <div class="follow" id="folgt-uns" hidden>
+        <h3>Folgt uns</h3>
+        <ul class="follow-links">
+          <li id="yt-item">
+            <a class="follow-link" id="yt-link" target="_blank" rel="noopener noreferrer">
+              <svg viewBox="0 0 48 40" aria-hidden="true"><path d="M5 7.5c12-2.2 26-2.6 38-.4 1.6 8 1.7 17.6.2 25.6-12.4 2-25.6 2.1-38 .3C3.6 24.8 3.4 15.6 5 7.5z"/><path d="M19.5 13.2l10.8 6.6-10.6 6.9z"/></svg>
+              <span><strong>YouTube</strong><span class="follow-sub" id="yt-sub"></span></span>
+            </a>
+          </li>
+          <li id="wa-item">
+            <a class="follow-link" id="wa-link" target="_blank" rel="noopener noreferrer">
+              <svg viewBox="0 0 48 40" aria-hidden="true"><path d="M24 4.5c10.6-.2 19.2 6.4 19.3 14.8.1 8.6-8.4 15.2-19 15.3-2.4 0-4.7-.3-6.8-1L8 37.2l2.6-8.1C7 26.3 4.7 22.7 4.8 19.2 5 10.9 13.4 4.7 24 4.5z"/><path d="M15 16.4h18M15 22.6h12"/></svg>
+              <span><strong>WhatsApp-Kanal</strong><span class="follow-sub">Kastenmännchen &amp; Memes</span></span>
+            </a>
+          </li>
+        </ul>
+      </div>
     </section>
   </main>
 
   <footer>
     <span>Mit Tinte auf Karopapier gezeichnet.</span>
+    <nav class="legal-links" id="footer-social" aria-label="Unsere Kanäle">
+      <a id="yt-footer" target="_blank" rel="noopener noreferrer">YouTube</a>
+      <a id="wa-footer" target="_blank" rel="noopener noreferrer">WhatsApp-Kanal</a>
+    </nav>
     <nav class="legal-links" aria-label="Rechtliches">
       <a href="#impressum" data-open="impressum">Impressum</a>
       <a href="#hinweise" data-open="hinweise">Wichtige Hinweise</a>
@@ -662,6 +705,16 @@ label.check input { width: 20px; height: 20px; margin: 0; flex: none; accent-col
         <label class="lbl" for="t-notes">Wichtige Hinweise <span class="opt">(Leerzeile = neuer Absatz, Zeile mit „- “ am Anfang = Aufzählung)</span></label>
         <textarea id="t-notes" maxlength="4000" rows="10"></textarea>
       </div>
+      <h3>Unsere Kanäle</h3>
+      <p class="opt">Diese Links stehen unter „Über uns“ und unten auf der Seite. Lässt du ein Feld leer, wird der Link ausgeblendet.</p>
+      <div class="field">
+        <label class="lbl" for="t-youtube">YouTube-Kanal <span class="opt">(Link, beginnt mit https://)</span></label>
+        <input type="text" id="t-youtube" maxlength="300" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="field">
+        <label class="lbl" for="t-whatsapp">WhatsApp-Kanal <span class="opt">(Link, beginnt mit https://)</span></label>
+        <input type="text" id="t-whatsapp" maxlength="300" autocomplete="off" spellcheck="false">
+      </div>
       <h3>Impressum und Datenschutz</h3>
       <p class="opt">Diese Angaben stehen im Impressum und in der Datenschutzerklärung.</p>
       <div class="field">
@@ -789,7 +842,15 @@ const DEFAULT_TEXTS = {
   operator_street: CONFIG.OPERATOR_STREET,
   operator_city: CONFIG.OPERATOR_CITY,
   contact_email: CONFIG.CONTACT_EMAIL,
+  youtube_url: 'https://www.youtube.com/@Kastenmännchen',
+  whatsapp_url: 'https://whatsapp.com/channel/0029VbDofmJ2Jl8CizqXEz1k',
 };
+
+/* Nur echte https-Links zulassen */
+function safeUrl(v) {
+  try { const u = new URL(String(v || '').trim()); return u.protocol === 'https:' ? u.href : ''; }
+  catch (e) { return ''; }
+}
 
 const INK = '#1E3A9A';
 const WASH = '#E3E8F6';
@@ -1104,6 +1165,21 @@ function renderTexts() {
   const about = $('#about-text');
   about.replaceChildren(...String(t.about || '').split(/\n\s*\n/).filter(Boolean).map(p => el('p', { text: p.trim() })));
   $('#about-signature').textContent = '– ' + t.title;
+  renderChannels();
+}
+
+function renderChannels() {
+  const yt = safeUrl(state.texts.youtube_url), wa = safeUrl(state.texts.whatsapp_url);
+  for (const [url, ids] of [[yt, ['#yt-link', '#yt-footer']], [wa, ['#wa-link', '#wa-footer']]]) {
+    for (const id of ids) { const a = $(id); a.hidden = !url; if (url) a.href = url; else a.removeAttribute('href'); }
+  }
+  $('#yt-item').hidden = !yt;
+  $('#wa-item').hidden = !wa;
+  let handle = '';
+  try { const p = decodeURIComponent(new URL(yt).pathname).split('/').filter(Boolean)[0] || ''; handle = p.startsWith('@') ? p : ''; } catch (e) {}
+  $('#yt-sub').textContent = handle || 'Unser Kanal';
+  $('#folgt-uns').hidden = !yt && !wa;
+  $('#footer-social').hidden = !yt && !wa;
 }
 
 function card(fig, list, i) {
@@ -1502,6 +1578,8 @@ function renderAdmin() {
     $('#t-op-street').value = state.texts.operator_street || '';
     $('#t-op-city').value = state.texts.operator_city || '';
     $('#t-op-email').value = state.texts.contact_email || '';
+    $('#t-youtube').value = state.texts.youtube_url || '';
+    $('#t-whatsapp').value = state.texts.whatsapp_url || '';
   }
 }
 
@@ -1599,7 +1677,14 @@ onSubmit($('#t-form'), $('#t-submit'), async () => {
     operator_street: $('#t-op-street').value.trim(),
     operator_city: $('#t-op-city').value.trim(),
     contact_email: $('#t-op-email').value.trim(),
+    youtube_url: $('#t-youtube').value.trim(),
+    whatsapp_url: $('#t-whatsapp').value.trim(),
   };
+  for (const [key, id, label] of [['youtube_url', '#t-youtube', 'YouTube'], ['whatsapp_url', '#t-whatsapp', 'WhatsApp']]) {
+    if (t[key] && !safeUrl(t[key])) {
+      setMsg(msg, `Der ${label}-Link muss mit https:// beginnen.`, true); $(id).focus(); return;
+    }
+  }
   if (!t.operator_name || !t.operator_street || !t.operator_city) {
     setMsg(msg, 'Name, Straße und PLZ/Ort müssen im Impressum stehen.', true); return;
   }
@@ -1633,6 +1718,16 @@ const addressBlock = () => [
   field(state.texts.operator_city, 'PLZ und Ort fehlen noch'),
 ].filter(Boolean).join('<br>');
 
+function channelsPrivacy() {
+  const yt = !!safeUrl(state.texts.youtube_url), wa = !!safeUrl(state.texts.whatsapp_url);
+  if (!yt && !wa) return '';
+  const names = [yt && 'YouTube-Kanal', wa && 'WhatsApp-Kanal'].filter(Boolean).join(' und unseren ');
+  const firms = [yt && 'YouTube (Google Ireland Limited)', wa && 'WhatsApp (WhatsApp Ireland Limited)'].filter(Boolean).join(' bzw. ');
+  return `
+    <h3>5. Links zu unseren Kanälen</h3>
+    <p>Wir verlinken unseren ${names}. ${yt && wa ? 'Das sind einfache Links: Erst wenn du einen davon anklickst' : 'Das ist ein einfacher Link: Erst wenn du ihn anklickst'}, verbindet sich dein Browser mit ${firms}. Ab dann gelten die Datenschutzbestimmungen dieses Anbieters.</p>`;
+}
+
 function renderLegal() {
   renderRichText($('#hinweise-body'), state.texts.notes);
   $('#impressum-body').innerHTML = `
@@ -1660,7 +1755,8 @@ function renderLegal() {
     <h3>4. Anmeldung für das Zeichenteam</h3>
     <p>Meldet sich jemand aus dem Zeichenteam als Admin an, speichert der Browser einen Anmelde-Schlüssel im lokalen Speicher. Das ist für die Anmeldung unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG). Bei Besucherinnen und Besuchern speichert die Seite nichts im Browser.</p>
 
-    <h3>5. Deine Rechte</h3>
+    ${channelsPrivacy()}
+    <h3>${channelsPrivacy() ? 6 : 5}. Deine Rechte</h3>
     <p>Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch gegen Verarbeitungen auf Grundlage berechtigter Interessen (Art. 21). Schreib uns dazu an ${mail()}. Außerdem kannst du dich bei einer Datenschutz-Aufsichtsbehörde beschweren (Art. 77 DSGVO), zum Beispiel beim Landesbeauftragten für den Datenschutz und die Informationsfreiheit Baden-Württemberg.</p>`;
 }
 
