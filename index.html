@@ -466,6 +466,50 @@ label.check input { width: 20px; height: 20px; margin: 0; flex: none; accent-col
 @keyframes like-pop { 40% { transform: rotate(-16deg) scale(1.3); } 100% { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .like.pop svg { animation: none; } }
 .fig-like { margin-top: 14px; }
+/* Kastenmännchen der Woche */
+.week-winner { margin-bottom: calc(var(--sq) * 2); }
+.poll-title { font: 700 2rem/1.1 'Caveat', cursive; color: var(--ink-deep); margin: 0 0 6px; }
+.poll-meta { max-width: 62ch; margin: 0 0 var(--sq); }
+.board { list-style: none; margin: 0; padding: 0; max-width: 760px; display: grid; gap: 12px; }
+.board-row {
+  display: grid;
+  grid-template-columns: 2.2rem 64px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 8px 12px 8px 6px;
+  border: 2px solid transparent;
+  border-radius: var(--wobble-a);
+}
+.board-row:nth-child(even) { border-radius: var(--wobble-b); }
+.board-row.mine { border-color: var(--ink); background: var(--paper); }
+.board-rank { font: 700 1.9rem/1 'Caveat', cursive; color: var(--ink-deep); text-align: right; }
+.board-thumb {
+  width: 64px; height: 56px; padding: 3px;
+  background: var(--paper); border: 2px solid var(--ink); border-radius: var(--wobble-c);
+  cursor: pointer;
+}
+.board-thumb img { display: block; width: 100%; height: 100%; object-fit: contain; mix-blend-mode: multiply; }
+.board-thumb:focus-visible, .board-name:focus-visible { outline: 2px dashed var(--ink); outline-offset: 3px; }
+.board-name {
+  display: block; padding: 0; border: 0; background: none; cursor: pointer; text-align: left;
+  font: 700 1.6rem/1.1 'Caveat', cursive; color: var(--ink-deep);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
+}
+.board-name:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.board-bar { height: 12px; margin-top: 6px; border: 2px solid var(--ink); border-radius: 8px 3px 9px 4px / 4px 9px 3px 8px; overflow: hidden; }
+.board-bar span { display: block; height: 100%; background: var(--ink); transition: width .4s ease-out; }
+.board-count { font-size: .95rem; white-space: nowrap; text-align: right; min-width: 6.5em; }
+.board-vote { min-width: 8.6em; }
+.board-vote[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+#winner-stamp { font-size: 1.25rem; letter-spacing: -.02em; }
+@media (prefers-reduced-motion: reduce) { .board-bar span { transition: none; } }
+@media (max-width: 620px) {
+  .board-row { grid-template-columns: 1.8rem 56px minmax(0, 1fr); }
+  .board-thumb { width: 56px; height: 50px; }
+  .board-row { gap: 6px 10px; padding-right: 8px; }
+  .board-count { grid-column: 3; grid-row: 2; justify-self: start; text-align: left; min-width: 0; font-size: .85rem; }
+  .board-vote { grid-column: 3; grid-row: 2; justify-self: end; min-width: 0; padding: 4px 10px; }
+}
 .daily-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
 .fig-admin { display: flex; flex-wrap: wrap; gap: 8px; margin-top: var(--sq); padding-top: 12px; border-top: 2px dashed rgba(30, 58, 154, .35); }
 .starter { border: 2px dashed var(--ink); border-radius: 12px; padding: 12px 16px; margin-bottom: var(--sq); }
@@ -480,6 +524,7 @@ label.check input { width: 20px; height: 20px; margin: 0; flex: none; accent-col
     <p class="subtitle" id="site-subtitle"></p>
     <nav class="nav" aria-label="Hauptnavigation">
       <a href="#galerie">Galerie</a>
+      <a href="#woche" id="nav-woche" hidden>Abstimmung</a>
       <a href="#community">Community</a>
       <a href="#ueber-uns">Über uns</a>
       <button type="button" id="nav-admin" hidden>Admin</button>
@@ -510,6 +555,30 @@ label.check input { width: 20px; height: 20px; margin: 0; flex: none; accent-col
     <section id="galerie" aria-labelledby="h-galerie">
       <h2 id="h-galerie">Galerie</h2>
       <div class="grid" id="gallery-grid"><p class="empty">Figuren werden geladen …</p></div>
+    </section>
+
+    <section id="woche" aria-labelledby="h-woche" hidden>
+      <h2 id="h-woche">Kastenmännchen der Woche</h2>
+      <div class="daily week-winner" id="week-winner" hidden>
+        <button type="button" class="daily-frame" id="winner-open" aria-label="Steckbrief öffnen">
+          <span class="daily-stamp" id="winner-stamp" aria-hidden="true"></span>
+          <img id="winner-img" alt="">
+        </button>
+        <div>
+          <p class="daily-date" id="winner-week"></p>
+          <p class="daily-name" id="winner-name"></p>
+          <p class="daily-by" id="winner-votes"></p>
+          <div class="daily-actions">
+            <button type="button" class="btn small" id="winner-more">Steckbrief öffnen</button>
+            <span id="winner-like"></span>
+          </div>
+        </div>
+      </div>
+      <div class="poll" id="poll" hidden>
+        <h3 class="poll-title">Wer wird das Kastenmännchen dieser Woche?</h3>
+        <p class="poll-meta" id="poll-meta"></p>
+        <ol class="board" id="poll-board"></ol>
+      </div>
     </section>
 
     <section id="community" aria-labelledby="h-community">
@@ -920,6 +989,36 @@ function newUuid() {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
+/* Kalenderwochen nach deutscher Zeit (Montag bis Sonntag) */
+function berlinToday(d = new Date()) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Berlin', year: 'numeric', month: 'numeric', day: 'numeric' })
+    .formatToParts(d).map(x => [x.type, x.value]));
+  return new Date(Date.UTC(+p.year, +p.month - 1, +p.day));
+}
+function isoWeekKey(d) {
+  const t = new Date(d);
+  t.setUTCDate(t.getUTCDate() - ((t.getUTCDay() + 6) % 7) + 3);           // Donnerstag dieser Woche
+  const jan4 = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
+  const week = 1 + Math.round((t - jan4) / 86400000 / 7 - 3 / 7 + ((jan4.getUTCDay() + 6) % 7) / 7);
+  return `${t.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+function weekRange(key) {
+  const [y, w] = key.split('-W').map(Number);
+  const jan4 = new Date(Date.UTC(y, 0, 4));
+  const mon = new Date(jan4);
+  mon.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() + 6) % 7) + (w - 1) * 7);
+  const sun = new Date(mon); sun.setUTCDate(mon.getUTCDate() + 6);
+  return [mon, sun];
+}
+const fmtDay = (d, opts) => d.toLocaleDateString('de-DE', { timeZone: 'UTC', ...opts });
+function weekLabel(key) {
+  const [mon, sun] = weekRange(key);
+  const range = mon.getUTCMonth() === sun.getUTCMonth()
+    ? `${mon.getUTCDate()}.–${fmtDay(sun, { day: 'numeric', month: 'long' })}`
+    : `${fmtDay(mon, { day: 'numeric', month: 'long' })} – ${fmtDay(sun, { day: 'numeric', month: 'long' })}`;
+  return { nr: Number(key.split('-W')[1]), range };
+}
+
 /* Eigene Daumen: zufällige Kennung + Liste, nur in diesem Browser.
    Wird erst angelegt, wenn jemand zum ersten Mal auf einen Daumen klickt. */
 const myLikes = (() => {
@@ -945,8 +1044,21 @@ const myLikes = (() => {
       if (!UUID_RE.test(d.voter || '')) { d.voter = newUuid(); save(); }
       return d.voter;
     },
+    // Nur lesen, nie anlegen: so entsteht beim bloßen Ansehen nichts im Browser
+    existingVoter() { const v = load().voter; return UUID_RE.test(v || '') ? v : null; },
   };
 })();
+
+function normWeekly(d) {
+  if (!d || typeof d !== 'object') throw new Error('Die Abstimmung konnte nicht geladen werden.');
+  return {
+    week: String(d.week || ''),
+    endsOn: String(d.ends_on || ''),
+    candidates: (Array.isArray(d.candidates) ? d.candidates : []).map(c => ({ id: c.id, votes: Number(c.votes) || 0 })),
+    myVote: d.my_vote || null,
+    last: d.last && d.last.id ? { id: d.last.id, votes: Number(d.last.votes) || 0, week: String(d.last.week || '') } : null,
+  };
+}
 function extFor(type) { return type === 'image/webp' ? 'webp' : type === 'image/png' ? 'png' : 'jpg'; }
 function blobToDataURL(blob) {
   return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
@@ -1078,6 +1190,34 @@ function createDemoStore() {
     catch (e) { toast('Der Browser-Speicher ist voll. Änderungen gelten nur bis zum Neuladen.', true); }
   };
   const find = id => load().figures.find(f => f.id === id);
+  const approvedIds = () => load().figures.filter(f => f.status === 'approved').map(f => f.id);
+  function demoWeek() {
+    const m = load();
+    const key = isoWeekKey(berlinToday());
+    if (!m.week || m.week.key !== key) {
+      if (m.week) {
+        const best = m.week.candidates.filter(id => find(id))
+          .map(id => ({ id, votes: m.week.votes[id] || 0 }))
+          .sort((a, b) => b.votes - a.votes)[0];
+        if (best && best.votes > 0) m.lastWinner = { id: best.id, votes: best.votes, week: m.week.key };
+      }
+      m.week = { key, candidates: [], votes: {}, mine: null };
+    }
+    const ok = new Set(approvedIds());
+    m.week.candidates = m.week.candidates.filter(id => ok.has(id));
+    const rest = [...ok].filter(id => !m.week.candidates.includes(id)).sort(() => Math.random() - 0.5);
+    m.week.candidates.push(...rest.slice(0, Math.max(0, 5 - m.week.candidates.length)));
+    if (m.week.mine && !ok.has(m.week.mine)) m.week.mine = null;
+    save();
+    const [, sun] = weekRange(key);
+    return {
+      week: key,
+      endsOn: sun.toISOString().slice(0, 10),
+      candidates: m.week.candidates.map(id => ({ id, votes: m.week.votes[id] || 0 })),
+      myVote: m.week.mine,
+      last: m.lastWinner && ok.has(m.lastWinner.id) ? m.lastWinner : null,
+    };
+  }
   return {
     mode: 'demo',
     async init() { load(); return { isAdmin: admin }; },
@@ -1085,6 +1225,18 @@ function createDemoStore() {
     async listFigures() {
       const all = load().figures.slice().sort((a, b) => a.created_at.localeCompare(b.created_at));
       return (admin ? all : all.filter(f => f.status === 'approved')).map(f => ({ ...f, likes: f.likes || 0, image_url: f.image_path }));
+    },
+    weeklyReady: true,
+    async getWeekly() { return demoWeek(); },
+    async voteWeekly(fig) {
+      demoWeek();
+      const w = load().week;
+      if (!w.candidates.includes(fig.id) || !find(fig.id)) throw new Error('Diese Figur steht diese Woche nicht zur Wahl.');
+      if (w.mine) w.votes[w.mine] = Math.max(0, (w.votes[w.mine] || 0) - 1);
+      w.votes[fig.id] = (w.votes[fig.id] || 0) + 1;
+      w.mine = fig.id;
+      save();
+      return demoWeek();
     },
     likesReady: true,
     async toggleLike(fig) {
@@ -1218,6 +1370,20 @@ async function createSupabaseStore() {
       const { error } = await sb.from('figures').delete().eq('id', fig.id);
       fail(error, 'Die Figur konnte nicht gelöscht werden.');
       await removeFile(fig.image_path);
+    },
+    weeklyReady: true,
+    async getWeekly(voter) {
+      const { data, error } = await sb.rpc('weekly_state', { p_voter: voter || null });
+      // Ist das Update in Supabase noch nicht ausgeführt, bleibt die Abstimmung einfach ausgeblendet
+      if (error && (error.code === 'PGRST202' || /weekly_state/i.test(error.message || ''))) this.weeklyReady = false;
+      fail(error, 'Die Abstimmung konnte nicht geladen werden.');
+      return normWeekly(data);
+    },
+    async voteWeekly(fig, voter) {
+      const { data, error } = await sb.rpc('vote_weekly', { p_fig: fig.id, p_voter: voter });
+      if (error && error.code === 'P0001') throw new Error(error.message);
+      fail(error, 'Deine Stimme konnte nicht gespeichert werden.');
+      return normWeekly(data);
     },
     async toggleLike(fig, voter) {
       const { data, error } = await sb.rpc('toggle_like', { p_fig: fig.id, p_voter: voter });
@@ -1378,10 +1544,99 @@ function openDaily() {
 $('#daily-open').addEventListener('click', openDaily);
 $('#daily-more').addEventListener('click', openDaily);
 
+/* ---------- Kastenmännchen der Woche ---------- */
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+let voteBusy = false;
+
+function renderWeekly() {
+  const w = !state.loadError && state.weekly;
+  const byId = id => approved().find(f => f.id === id);
+  const winner = w && w.last && byId(w.last.id);
+  const cands = w ? w.candidates.map(c => ({ ...c, fig: byId(c.id) })).filter(c => c.fig) : [];
+  const showPoll = cands.length >= 2;
+  $('#woche').hidden = !winner && !showPoll;
+  $('#nav-woche').hidden = $('#woche').hidden;
+  if ($('#woche').hidden) return;
+
+  // Gewinner der letzten Abstimmung
+  $('#week-winner').hidden = !winner;
+  if (winner) {
+    const { nr, range } = weekLabel(w.last.week);
+    $('#winner-stamp').textContent = 'KW ' + nr;
+    $('#winner-img').src = winner.image_url;
+    $('#winner-img').alt = winner.name;
+    $('#winner-week').textContent = `Gewählt in Kalenderwoche ${nr} (${range})`;
+    $('#winner-name').textContent = winner.name;
+    $('#winner-votes').textContent = `Mit ${plural(w.last.votes, 'Stimme', 'Stimmen')} gewählt.`;
+    $('#winner-like').replaceChildren(...[likeButton(winner)].filter(Boolean));
+  }
+
+  // Abstimmung dieser Woche
+  $('#poll').hidden = !showPoll;
+  if (!showPoll) return;
+  const total = cands.reduce((n, c) => n + c.votes, 0);
+  const end = w.endsOn ? fmtDay(new Date(w.endsOn + 'T00:00:00Z'), { weekday: 'long', day: 'numeric', month: 'long' }) : 'Sonntag';
+  $('#poll-meta').textContent =
+    `${cands.length === 5 ? 'Fünf zufällige Kastenmännchen' : 'Diese Kastenmännchen'} stehen diese Woche zur Wahl. ` +
+    `Du hast eine Stimme und kannst sie bis ${end}, 24 Uhr, noch ändern. ` +
+    `${winner ? 'Am Montag steht hier das neue Kastenmännchen der Woche.' : 'Am Montag steht hier das erste Kastenmännchen der Woche.'}`;
+
+  const sorted = cands.slice().sort((a, b) => b.votes - a.votes);   // bei Gleichstand bleibt die Reihenfolge
+  const list = sorted.map(c => c.fig);
+  let rank = 0, prev = null;
+  const rows = sorted.map((c, i) => {
+    if (c.votes !== prev) { rank = i + 1; prev = c.votes; }
+    const mine = w.myVote === c.id;
+    const pct = total ? Math.round(c.votes / total * 100) : 0;
+    const vote = el('button', {
+      type: 'button', class: 'btn small board-vote', 'data-vote': c.id, 'aria-pressed': mine ? 'true' : 'false',
+      'aria-label': mine ? `Deine Stimme: „${c.fig.name}“` : `Für „${c.fig.name}“ stimmen`,
+      text: mine ? 'Deine Stimme' : 'Wählen',
+      onclick: () => castVote(c.id),
+    });
+    return el('li', { class: mine ? 'board-row mine' : 'board-row' },
+      el('span', { class: 'board-rank', text: c.votes ? rank + '.' : '', 'aria-hidden': 'true' }),
+      el('button', { type: 'button', class: 'board-thumb', 'aria-label': `Steckbrief von „${c.fig.name}“ öffnen`, onclick: () => openFigure(list, i) },
+        el('img', { src: c.fig.image_url, alt: '', loading: 'lazy', decoding: 'async' })),
+      el('div', { class: 'board-main' },
+        el('button', { type: 'button', class: 'board-name', text: c.fig.name, onclick: () => openFigure(list, i) }),
+        el('div', { class: 'board-bar', role: 'img', 'aria-label': `${pct} Prozent der Stimmen` }, el('span', { style: `width:${pct}%` }))),
+      el('span', { class: 'board-count', text: plural(c.votes, 'Stimme', 'Stimmen') }),
+      vote);
+  });
+  $('#poll-board').replaceChildren(...rows);
+}
+
+async function castVote(id) {
+  const fig = approved().find(f => f.id === id);
+  if (!fig || voteBusy || (state.weekly && state.weekly.myVote === id)) return;
+  voteBusy = true;
+  $$('.board-vote').forEach(b => { b.disabled = true; });
+  try {
+    state.weekly = await store.voteWeekly(fig, myLikes.voter());
+    toast(`Deine Stimme für „${fig.name}“ ist gezählt.`);
+  } catch (e) {
+    toast(e.message || 'Deine Stimme konnte nicht gespeichert werden.', true);
+    state.weekly = await loadWeekly();
+  } finally {
+    voteBusy = false;
+    renderWeekly();
+    const again = $$('.board-vote').find(b => b.dataset.vote === id);
+    if (again) again.focus();
+  }
+}
+function openWinner() {
+  const f = state.weekly && state.weekly.last && approved().find(x => x.id === state.weekly.last.id);
+  if (f) openFigure([f], 0);
+}
+$('#winner-open').addEventListener('click', openWinner);
+$('#winner-more').addEventListener('click', openWinner);
+
 function renderAll() {
   renderTexts();
   renderLegal();
   renderDaily();
+  renderWeekly();
   renderGrid('#gallery-grid', gallery(), 'Hier ist noch Platz. Melde dich unten als Admin an und füge das erste Kastenmännchen hinzu.');
   renderGrid('#community-grid', community(), 'Noch keine Kastenmännchen aus der Community. Zeichne unten das erste!');
   $('#nav-admin').hidden = !state.isAdmin;
@@ -1389,7 +1644,14 @@ function renderAll() {
   if ($('#admin-dialog').open) renderAdmin();
 }
 
+async function loadWeekly() {
+  if (!store.getWeekly || store.weeklyReady === false) return null;
+  try { return await store.getWeekly(myLikes.existingVoter()); }
+  catch (e) { console.warn('Abstimmung:', e.message); return null; }
+}
+
 async function refresh() {
+  const weekly = loadWeekly();
   try {
     const [figs, texts] = await Promise.all([store.listFigures(), store.getTexts()]);
     state.figures = figs; state.texts = texts; state.loadError = '';
@@ -1397,6 +1659,7 @@ async function refresh() {
     console.error(e);
     state.loadError = e.message || 'Die Figuren konnten nicht geladen werden.';
   }
+  state.weekly = await weekly;
   state.isAdmin = store.isAdmin();
   renderAll();
 }
@@ -1867,11 +2130,20 @@ const addressBlock = () => [
 ].filter(Boolean).join('<br>');
 
 function likesPrivacy() {
-  if (!likesOn()) return '';
+  const likes = likesOn(), vote = !!state.weekly && !state.loadError;
+  if (!likes && !vote) return '';
+  const what = likes && vote ? 'einer Figur einen Daumen hoch oder stimmst du beim Kastenmännchen der Woche ab'
+    : likes ? 'einer Figur einen Daumen hoch' : 'beim Kastenmännchen der Woche ab';
+  const saved = [
+    likes ? 'welche Figur von welcher Kennung einen Daumen bekommen hat, und wann' : '',
+    vote ? 'für welche Figur eine Kennung in welcher Woche gestimmt hat, und wann' : '',
+  ].filter(Boolean).join('; außerdem, ');
+  const why = [likes ? 'jeder Daumen pro Browser nur einmal zählt und du ihn wieder zurücknehmen kannst' : '',
+    vote ? 'jeder Browser pro Woche nur eine Stimme hat, die er ändern kann' : ''].filter(Boolean).join(' und ');
   return `
-    <h3>Daumen hoch</h3>
-    <p>Gibst du einer Figur einen Daumen hoch, legt dein Browser eine zufällige Kennung an und speichert sie zusammen mit der Liste deiner Daumen im lokalen Speicher deines Browsers. Bei Supabase speichern wir, welche Figur von welcher Kennung einen Daumen bekommen hat, und wann. So zählt jeder Daumen pro Browser nur einmal und du kannst ihn wieder zurücknehmen. Die Kennung enthält keinen Namen, und wir verknüpfen sie nicht mit deiner IP-Adresse.</p>
-    <p>Gespeichert wird erst, wenn du auf einen Daumen klickst. Das Speichern im Browser ist für diese Funktion unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG). Rechtsgrundlage für die Speicherung bei Supabase ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer fairen Zählung). Nimmst du deinen Daumen zurück, löschen wir den Eintrag; löschen wir eine Figur, löschen wir auch ihre Daumen. Die Kennung in deinem Browser entfernst du, indem du die Websitedaten für diese Seite löschst.</p>`;
+    <h3>${likes && vote ? 'Daumen hoch und Abstimmung' : likes ? 'Daumen hoch' : 'Abstimmung'}</h3>
+    <p>Gibst du ${what}, legt dein Browser eine zufällige Kennung an und speichert sie im lokalen Speicher deines Browsers${likes ? ', zusammen mit der Liste deiner Daumen' : ''}. Bei Supabase speichern wir, ${saved}. So ist sichergestellt, dass ${why}. Die Kennung enthält keinen Namen, und wir verknüpfen sie nicht mit deiner IP-Adresse.</p>
+    <p>Gespeichert wird erst, wenn du klickst. Das Speichern im Browser ist für diese Funktion unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG). Rechtsgrundlage für die Speicherung bei Supabase ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer fairen Zählung).${likes ? ' Nimmst du deinen Daumen zurück, löschen wir den Eintrag; löschen wir eine Figur, löschen wir auch ihre Daumen.' : ''}${vote ? ' Die einzelnen Stimmen einer Woche löschen wir, sobald am Montag das Kastenmännchen der Woche feststeht. Danach bleibt nur gespeichert, welche Figur gewonnen hat und mit wie vielen Stimmen.' : ''} Die Kennung in deinem Browser entfernst du, indem du die Websitedaten für diese Seite löschst.</p>`;
 }
 
 function channelsPrivacy() {
@@ -1910,7 +2182,7 @@ function renderLegal() {
 
     ${likesPrivacy()}
     <h3>Anmeldung für das Zeichenteam</h3>
-    <p>Meldet sich jemand aus dem Zeichenteam als Admin an, speichert der Browser einen Anmelde-Schlüssel im lokalen Speicher. Das ist für die Anmeldung unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG).${likesOn() ? '' : ' Bei Besucherinnen und Besuchern speichert die Seite nichts im Browser.'}</p>
+    <p>Meldet sich jemand aus dem Zeichenteam als Admin an, speichert der Browser einen Anmelde-Schlüssel im lokalen Speicher. Das ist für die Anmeldung unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG).${likesOn() || (state.weekly && !state.loadError) ? '' : ' Bei Besucherinnen und Besuchern speichert die Seite nichts im Browser.'}</p>
 
     ${channelsPrivacy()}
     <h3>Deine Rechte</h3>
