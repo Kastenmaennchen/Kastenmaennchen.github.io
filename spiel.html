@@ -207,6 +207,25 @@ a:focus-visible, button:focus-visible {
 .avatar span { max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .avatar:hover { background: var(--wash); }
 .avatar[aria-checked="true"] { border-color: var(--ink); background: var(--wash); }
+.diffs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; max-width: 460px; }
+.diff {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+  padding: 4px 12px 7px;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  background: rgba(251, 251, 247, .85);
+  border: 2px dashed rgba(30, 58, 154, .4);
+  border-radius: var(--wobble-b);
+  cursor: pointer;
+}
+.diff strong { font: 700 1.6rem/1.1 'Caveat', cursive; color: var(--ink-deep); }
+.diff em { font-style: normal; font-size: .78rem; font-weight: 600; line-height: 1.2; }
+.diff:hover { background: var(--wash); }
+.diff[aria-checked="true"] { border-style: solid; border-color: var(--ink); background: var(--wash); }
+.diff-info { margin: 6px 0 0; font-size: .88rem; min-height: 22px; }
 .best { margin: 10px 0 0; font-size: .92rem; }
 .loading-note { font-size: .92rem; }
 
@@ -339,9 +358,10 @@ footer {
   .avatar { width: 92px; }
   .avatar img { width: 78px; height: 44px; }
   .sheet h3 { font-size: 1.6rem; line-height: 1.2; }
-  .rules { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 10px; }
-  .rules li { font-size: .8rem; gap: 6px; }
-  .rules canvas { width: 30px; height: 30px; }
+  .rules { display: none; }
+  .sheet h2 { margin-bottom: 4px; }
+  .diff { padding: 3px 8px 6px; }
+  .diff strong { font-size: 1.4rem; }
   .toast { font-size: 1.2rem; padding: 3px 12px 5px; }
   .grade { font-size: 2rem; }
   .remark { font-size: 1.35rem; }
@@ -387,6 +407,9 @@ footer {
             <h3>Wähle deinen Glücksbringer</h3>
             <p class="loading-note" id="loading-note">Die Kastenmännchen werden geholt …</p>
             <div class="avatars" id="avatars" role="radiogroup" aria-label="Spielfigur"></div>
+            <h3>Schwierigkeit</h3>
+            <div class="diffs" id="diffs" role="radiogroup" aria-label="Schwierigkeit"></div>
+            <p class="diff-info" id="diff-info"></p>
             <div class="actions">
               <button type="button" class="btn primary big" id="btn-start" disabled>Los geht’s!</button>
               <a class="linkish" href="#so-gehts">Wie geht das genau?</a>
@@ -418,6 +441,7 @@ footer {
       <h2 id="h-so">So geht’s</h2>
       <ul class="legend" id="legend"></ul>
       <p style="margin-top: var(--sq)"><strong>Kombo:</strong> Alle 5 guten Noten hintereinander steigt dein Punkte-Multiplikator, bis höchstens ×5. Eine verpasste gute Note oder eine 5 oder 6 setzt ihn zurück.</p>
+      <p><strong>Schwierigkeit:</strong> Auf „Leicht“ hast du 5 Leben, die Noten fallen langsamer und es kommen weniger Fünfen und Sechsen, dafür zählen die Punkte nur halb. Auf „Schwer“ startest du mit 2 Leben und alles kommt schneller, dafür gibt es 1,5-mal so viele Punkte. So bleibt die Bestenliste fair.</p>
       <p><strong>Klassen:</strong> Nach 12 guten Noten wirst du versetzt, und alles fällt ein bisschen schneller. Nach Klasse 13 gibt’s das Abi mit 1.000 Extrapunkten, danach geht es im Studium weiter.</p>
     </section>
 
@@ -486,6 +510,17 @@ const REDUCED = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: red
 const MAX_LIVES = 5;
 const PER_LEVEL = 12;
 
+/* Schwierigkeitsstufen: fall/spawn = Tempo-Faktor (größer = langsamer), bad = Anteil Fünfen/Sechsen/Kleckse,
+   fig = Anteil Kastenmännchen, pts = Punkte-Faktor (damit die Bestenliste fair bleibt) */
+const DIFFS = {
+  leicht: { name: 'Leicht', info: '5 Leben, die Noten fallen langsamer und es kommen weniger Fünfen und Sechsen. Dafür zählen die Punkte nur halb.',
+    lives: 5, fall: 1.3, spawn: 1.12, bad: 0.55, fig: 1.4, pts: 0.5, ptsText: '×0,5' },
+  normal: { name: 'Normal', info: '3 Leben – so, wie die Prüfung gedacht ist.',
+    lives: 3, fall: 1, spawn: 1, bad: 1, fig: 1, pts: 1, ptsText: '×1' },
+  schwer: { name: 'Schwer', info: 'Nur 2 Leben, alles fällt schneller und es kommen mehr Fünfen und Sechsen. Dafür gibt es 1,5-mal so viele Punkte.',
+    lives: 2, fall: 0.78, spawn: 0.85, bad: 1.4, fig: 0.75, pts: 1.5, ptsText: '×1,5' },
+};
+
 /* ---------- kleine Helfer ---------- */
 const $ = (s, r = document) => r.querySelector(s);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -532,7 +567,7 @@ const levelName = n => (n <= 13 ? `Klasse ${n}` : `Semester ${n - 13}`);
 const SAVE_KEY = 'kastenmaennchen-spiel' + (TEST ? '-test' : '');
 const Save = (() => {
   let d = null;
-  const blank = () => ({ best: null, runs: [], album: [], avatar: null, sound: true, nick: null, plays: 0 });
+  const blank = () => ({ best: null, runs: [], album: [], avatar: null, sound: true, nick: null, plays: 0, diff: 'normal' });
   function get() {
     if (d) return d;
     try { d = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { d = null; }
@@ -853,10 +888,15 @@ let rafId = 0, lastTs = 0;
 const keys = { left: false, right: false };
 let pointerX = null;
 
+const diffKey = () => (Object.prototype.hasOwnProperty.call(DIFFS, Save.get().diff) ? Save.get().diff : 'normal');
 const game = {};
+const D = () => DIFFS[game.diff] || DIFFS.normal;
+const pts = n => Math.round(n * D().pts);
 function resetGame() {
+  const dk = diffKey();
   Object.assign(game, {
-    t: 0, score: 0, lives: 3, combo: 0, maxCombo: 0, good: 0, level: 1,
+    t: 0, score: 0, diff: dk, lives: DIFFS[dk].lives, startLives: DIFFS[dk].lives,
+    combo: 0, maxCombo: 0, good: 0, level: 1,
     items: [], floats: [], parts: [], splats: [],
     spawnIn: 0.6, shake: 0, flash: 0, flashColor: COL.red,
     powers: {}, abi: false, lastSpawnX: -999,
@@ -962,14 +1002,15 @@ function resize() {
 /* ---------- Ablauf ---------- */
 function difficulty(n) {
   const lv = Math.min(n, 22);
+  const d = D();
   return {
-    fall: Math.max(1.4, 3.4 - 0.13 * (lv - 1)),
-    spawn: Math.max(0.3, 0.92 - 0.046 * (lv - 1)),
+    fall: Math.max(1.4, 3.4 - 0.13 * (lv - 1)) * d.fall,
+    spawn: Math.max(0.3, 0.92 - 0.046 * (lv - 1)) * d.spawn,
     weights: [
       { k: 'g1', w: 20 }, { k: 'g2', w: 26 }, { k: 'star', w: lv >= 3 ? 3 : 1.5 },
-      { k: 'b5', w: 7 + 0.7 * lv }, { k: 'b6', w: 5 + 1.4 * lv },
-      { k: 'blot', w: lv >= 3 ? 2.5 : 0 },
-      { k: 'fig', w: figures.length ? 3.2 : 0 },
+      { k: 'b5', w: (7 + 0.7 * lv) * d.bad }, { k: 'b6', w: (5 + 1.4 * lv) * d.bad },
+      { k: 'blot', w: lv >= 3 ? 2.5 * d.bad : 0 },
+      { k: 'fig', w: figures.length ? 3.2 * d.fig : 0 },
     ],
   };
 }
@@ -1040,7 +1081,7 @@ function grantPower(fig) {
       if (it.kind === 'b5' || it.kind === 'b6' || it.kind === 'blot') { burst(it.x, it.y, COL.wash, 8); n++; return false; }
       return true;
     });
-    if (n) { game.score += n * 10; addFloat(W / 2, H * 0.4, `+${n * 10}`, COL.ink, 30); }
+    if (n) { game.score += pts(n * 10); addFloat(W / 2, H * 0.4, `+${fmt(pts(n * 10))}`, COL.ink, 30); }
     Sound.erase();
   } else {
     game.powers[p] = { left: POWERS[p].dur, total: POWERS[p].dur };
@@ -1053,9 +1094,9 @@ function levelUp() {
   Sound.level();
   if (game.level === 14 && !game.abi) {
     game.abi = true;
-    game.score += 1000;
-    toast('Abitur bestanden! +1.000 Punkte', 'good');
-    addFloat(W / 2, H * 0.35, '+1.000', COL.ink, 40);
+    game.score += pts(1000);
+    toast(`Abitur bestanden! +${fmt(pts(1000))} Punkte`, 'good');
+    addFloat(W / 2, H * 0.35, `+${fmt(pts(1000))}`, COL.ink, 40);
   } else {
     toast(game.level <= 13 ? `Versetzt in Klasse ${game.level}!` : `Weiter ins ${game.level - 13}. Semester!`, 'good');
   }
@@ -1072,7 +1113,7 @@ function catchItem(it) {
     game.combo++;
     game.maxCombo = Math.max(game.maxCombo, game.combo);
     const base = it.kind === 'g1' ? 100 : it.kind === 'g2' ? 50 : 250;
-    const gain = base * comboMult() * (active('double') ? 2 : 1);
+    const gain = pts(base * comboMult() * (active('double') ? 2 : 1));
     game.score += gain;
     st[it.kind]++;
     game.good++;
@@ -1085,8 +1126,8 @@ function catchItem(it) {
     if (useShield()) { burst(it.x, it.y, COL.wash, 10); return; }
     st.b5++;
     game.combo = 0;
-    game.score = Math.max(0, game.score - 50);
-    addFloat(it.x, it.y - 10 * S, '−50', COL.red, 28);
+    game.score = Math.max(0, game.score - pts(50));
+    addFloat(it.x, it.y - 10 * S, `−${pts(50)}`, COL.red, 28);
     burst(it.x, it.y, COL.red, 8);
     hurtFlash();
     Sound.bad();
@@ -1110,8 +1151,9 @@ function catchItem(it) {
     toast('Platsch! Tintenklecks!', 'bad');
   } else if (it.kind === 'fig') {
     st.figs.set(it.fig.id, it.fig);
-    game.score += 150 * (active('double') ? 2 : 1);
-    addFloat(it.x, it.y - 12 * S, `+${150 * (active('double') ? 2 : 1)}`, COL.ink, 28);
+    const figGain = pts(150 * (active('double') ? 2 : 1));
+    game.score += figGain;
+    addFloat(it.x, it.y - 12 * S, `+${fmt(figGain)}`, COL.ink, 28);
     burst(it.x, it.y, COL.hi, 18);
     grantPower(it.fig);
   }
@@ -1309,10 +1351,10 @@ function updateHud() {
   setText('hud-level-label', game.level <= 13 ? 'Klasse' : 'Semester');
   setText('hud-level', String(game.level <= 13 ? game.level : game.level - 13));
   setText('hud-combo', '×' + comboMult());
-  const livesKey = game.lives + '/' + Math.max(3, game.lives);
+  const livesKey = game.lives + '/' + Math.max(game.startLives, game.lives);
   if (hudCache.lives !== livesKey) {
     hudCache.lives = livesKey;
-    const n = Math.max(3, game.lives);
+    const n = Math.max(game.startLives, game.lives);
     let html = '';
     for (let i = 0; i < n; i++) html += HEART_SVG(i < game.lives);
     const box = $('#hud-lives');
@@ -1428,8 +1470,8 @@ function endGame() {
   const sv = Save.get();
   const prevBest = sv.best ? sv.best.score : 0;
   const record = game.score > prevBest && game.score > 0;
-  if (record) sv.best = { score: game.score, level: game.level, date: new Date().toISOString() };
-  sv.runs.push({ score: game.score, level: game.level, date: new Date().toISOString() });
+  if (record) sv.best = { score: game.score, level: game.level, diff: game.diff, date: new Date().toISOString() };
+  sv.runs.push({ score: game.score, level: game.level, diff: game.diff, date: new Date().toISOString() });
   sv.runs.sort((a, b) => b.score - a.score);
   sv.runs = sv.runs.slice(0, 5);
   sv.plays = (sv.plays || 0) + 1;
@@ -1480,6 +1522,7 @@ function renderReport({ record, prevBest, seconds, newFigs }) {
   const sv = Save.get();
   const rows = [
     ['Punkte', fmt(game.score)],
+    ['Schwierigkeit', `${D().name} (${D().ptsText})`],
     ['Erreicht', levelName(game.level)],
     ['Längste Kombo', `${game.maxCombo} gute Noten`],
     ['Einsen gefangen', `${st.g1 + st.star}`],
@@ -1539,7 +1582,7 @@ function renderReport({ record, prevBest, seconds, newFigs }) {
   const share = el('button', { type: 'button', class: 'btn', text: 'Ergebnis teilen' });
   share.addEventListener('click', async () => {
     const url = location.href.split('#')[0].split('?')[0];
-    const text = `Ich habe bei der Glücksbringer-Prüfung der Kastenmännchen ${fmt(game.score)} Punkte geschafft und ${levelName(game.level)} erreicht!`;
+    const text = `Ich habe bei der Glücksbringer-Prüfung der Kastenmännchen auf „${D().name}“ ${fmt(game.score)} Punkte geschafft und ${levelName(game.level)} erreicht!`;
     try {
       if (navigator.share) { await navigator.share({ title: 'Glücksbringer-Prüfung', text, url }); return; }
       await navigator.clipboard.writeText(`${text} ${url}`);
@@ -1585,7 +1628,7 @@ function renderPersonal() {
   list.textContent = '';
   for (const r of sv.runs) {
     list.append(el('li', {},
-      el('span', {}, levelName(r.level), el('span', { class: 'sub', text: fmtDate(r.date) })),
+      el('span', {}, levelName(r.level), el('span', { class: 'sub', text: (DIFFS[r.diff] ? DIFFS[r.diff].name + ' · ' : '') + fmtDate(r.date) })),
       el('span', { class: 'pts', text: fmt(r.score) }),
     ));
   }
@@ -1611,7 +1654,7 @@ function renderAlbum() {
 function renderStartInfo() {
   const sv = Save.get();
   $('#start-best').textContent = sv.best
-    ? `Dein Rekord: ${fmt(sv.best.score)} Punkte (${levelName(sv.best.level)})`
+    ? `Dein Rekord: ${fmt(sv.best.score)} Punkte (${levelName(sv.best.level)}${DIFFS[sv.best.diff] ? ', ' + DIFFS[sv.best.diff].name : ''})`
     : '';
 }
 function renderAvatars() {
@@ -1629,6 +1672,31 @@ function renderAvatars() {
     }, el('img', { src: f.src, alt: '' }), el('span', { text: f.name }));
     box.append(b);
   }
+}
+
+function renderDiffs() {
+  const box = $('#diffs');
+  box.textContent = '';
+  const cur = diffKey();
+  for (const [k, d] of Object.entries(DIFFS)) {
+    const b = el('button', {
+      type: 'button', class: 'diff', role: 'radio', 'aria-checked': k === cur ? 'true' : 'false',
+      'aria-describedby': 'diff-info',
+      onclick: () => {
+        Save.get().diff = k; Save.save();
+        for (const x of box.children) x.setAttribute('aria-checked', x === b ? 'true' : 'false');
+        $('#diff-info').textContent = d.info;
+        if (state === 'menu') {
+          resetGame();
+          Object.keys(hudCache).forEach(key => delete hudCache[key]);
+          updateHud();
+          draw();
+        }
+      },
+    }, el('strong', { text: d.name }), el('em', { text: `Punkte ${d.ptsText}` }));
+    box.append(b);
+  }
+  $('#diff-info').textContent = DIFFS[cur].info;
 }
 
 /* ---------- Symbole in der Erklärung ---------- */
@@ -1767,6 +1835,7 @@ async function init() {
   buildSprites();
   renderLegend();
   renderAvatars();
+  renderDiffs();
   renderAlbum();
   renderStartInfo();
   state = 'menu';
