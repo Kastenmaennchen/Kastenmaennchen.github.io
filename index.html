@@ -526,6 +526,7 @@ label.check input { width: 20px; height: 20px; margin: 0; flex: none; accent-col
       <a href="#galerie">Galerie</a>
       <a href="#woche" id="nav-woche" hidden>Abstimmung</a>
       <a href="#community">Community</a>
+      <a href="spiel.html">Spiel</a>
       <a href="#ueber-uns">Über uns</a>
       <button type="button" id="nav-admin" hidden>Admin</button>
     </nav>
@@ -2181,8 +2182,11 @@ function renderLegal() {
     <p>Rechtsgrundlage ist deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO). Bist du jünger als 16 Jahre, brauchst du dafür das Einverständnis deiner Eltern (Art. 8 DSGVO). Du kannst die Einwilligung jederzeit per E-Mail an ${mail()} widerrufen (Art. 7 Abs. 3 DSGVO); dann löschen wir die Figur.</p>
 
     ${likesPrivacy()}
+    <h3>Spiel „Glücksbringer-Prüfung“</h3>
+    <p>Spielst du die Glücksbringer-Prüfung (spiel.html), speichert dein Browser deine besten Runden, deine gewählte Spielfigur, die Ton-Einstellung und dein Sammelalbum im lokalen Speicher deines Browsers. Gespeichert wird erst, wenn du spielst oder etwas auswählst, und diese Daten verlassen deinen Browser nicht. Das ist für diese Funktionen unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG). Du kannst sie jederzeit löschen, indem du die Website-Daten in deinem Browser löschst.</p>
+    <p>Trägst du dich freiwillig in die Online-Bestenliste ein, speichern wir bei Supabase einen Spitznamen, der zufällig aus festen Wörtern zusammengesetzt ist (zum Beispiel „Mutiges Tintenfass 42“), deine Punkte, die erreichte Klasse, die Spieldauer und den Zeitpunkt. Einen echten Namen oder freien Text gibt es dabei nicht. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer gemeinsamen Bestenliste). Möchtest du einen Eintrag löschen lassen, schreib uns an ${mail()}.</p>
     <h3>Anmeldung für das Zeichenteam</h3>
-    <p>Meldet sich jemand aus dem Zeichenteam als Admin an, speichert der Browser einen Anmelde-Schlüssel im lokalen Speicher. Das ist für die Anmeldung unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG).${likesOn() || (state.weekly && !state.loadError) ? '' : ' Bei Besucherinnen und Besuchern speichert die Seite nichts im Browser.'}</p>
+    <p>Meldet sich jemand aus dem Zeichenteam als Admin an, speichert der Browser einen Anmelde-Schlüssel im lokalen Speicher. Das ist für die Anmeldung unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG).${likesOn() || (state.weekly && !state.loadError) ? '' : ' Beim bloßen Ansehen speichert die Seite bei Besucherinnen und Besuchern nichts im Browser.'}</p>
 
     ${channelsPrivacy()}
     <h3>Deine Rechte</h3>
