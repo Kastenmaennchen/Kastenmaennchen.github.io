@@ -355,6 +355,7 @@ dialog::backdrop { background: rgba(20, 41, 111, .3); }
 .row .r-meta { font-size: .85rem; line-height: 20px; }
 .row .r-desc { font-size: .9rem; line-height: 20px; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .row .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.row.no-img { grid-template-columns: minmax(0, 1fr) auto; }
 .tag { display: inline-block; font-size: .78rem; line-height: 18px; border: 1.5px solid var(--ink); border-radius: 999px; padding: 0 8px; margin-left: 4px; vertical-align: 2px; }
 .tag.pending { border-style: dashed; }
 
@@ -384,6 +385,7 @@ dialog::backdrop { background: rgba(20, 41, 111, .3); }
   .row { grid-template-columns: 56px minmax(0, 1fr); }
   .row img { width: 56px; height: 56px; }
   .row .actions { grid-column: 1 / -1; justify-content: flex-start; }
+  .row.no-img { grid-template-columns: minmax(0, 1fr); }
   dialog.sheet { padding: var(--sq); }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -728,6 +730,7 @@ label.check input { width: 20px; height: 20px; margin: 0; flex: none; accent-col
     <button type="button" role="tab" data-tab="pruefen" aria-selected="false" id="tab-pending">Einreichungen</button>
     <button type="button" role="tab" data-tab="tages" aria-selected="false">Des Tages</button>
     <button type="button" role="tab" data-tab="texte" aria-selected="false">Seitentexte</button>
+    <button type="button" role="tab" data-tab="spiel" aria-selected="false">Spiel</button>
   </div>
 
   <div data-panel="neu">
@@ -786,6 +789,12 @@ label.check input { width: 20px; height: 20px; margin: 0; flex: none; accent-col
         <p class="msg" id="d-msg" role="status"></p>
       </div>
     </div>
+  </div>
+
+  <div data-panel="spiel" hidden>
+    <p>Die neuesten Einträge in der Bestenliste der Glücksbringer-Prüfung. Unpassende Namen kannst du hier löschen.</p>
+    <p class="msg" id="g-msg" role="status"></p>
+    <div class="list" id="g-list"></div>
   </div>
 
   <div data-panel="texte" hidden>
@@ -1227,6 +1236,18 @@ function createDemoStore() {
       const all = load().figures.slice().sort((a, b) => a.created_at.localeCompare(b.created_at));
       return (admin ? all : all.filter(f => f.status === 'approved')).map(f => ({ ...f, likes: f.likes || 0, image_url: f.image_path }));
     },
+    async listGameScores() {
+      let rows = [];
+      try { rows = JSON.parse(localStorage.getItem(GAME_TEST_KEY) || '[]'); } catch (e) { rows = []; }
+      return (Array.isArray(rows) ? rows : []).map((r, i) => ({ ...r, id: i }))
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    },
+    async deleteGameScore(row) {
+      let rows = [];
+      try { rows = JSON.parse(localStorage.getItem(GAME_TEST_KEY) || '[]'); } catch (e) { rows = []; }
+      rows.splice(row.id, 1);
+      try { localStorage.setItem(GAME_TEST_KEY, JSON.stringify(rows)); } catch (e) { /* egal */ }
+    },
     weeklyReady: true,
     async getWeekly() { return demoWeek(); },
     async voteWeekly(fig) {
@@ -1371,6 +1392,20 @@ async function createSupabaseStore() {
       const { error } = await sb.from('figures').delete().eq('id', fig.id);
       fail(error, 'Die Figur konnte nicht gelöscht werden.');
       await removeFile(fig.image_path);
+    },
+    async listGameScores() {
+      const { data, error } = await sb.rpc('spiel_admin_liste', { p_anzahl: 200 });
+      if (error && (error.code === 'PGRST202' || /spiel_admin_liste/i.test(error.message || ''))) {
+        throw new Error('Damit du hier Einträge löschen kannst, führe zuerst in Supabase das Update „supabase-update-spielname.sql“ aus.');
+      }
+      if (error && error.code === 'P0001') throw new Error(error.message);
+      fail(error, 'Die Bestenliste konnte nicht geladen werden.');
+      return Array.isArray(data) ? data : [];
+    },
+    async deleteGameScore(row) {
+      const { error } = await sb.rpc('spiel_loeschen', { p_id: row.id });
+      if (error && error.code === 'P0001') throw new Error(error.message);
+      fail(error, 'Der Eintrag konnte nicht gelöscht werden.');
     },
     weeklyReady: true,
     async getWeekly(voter) {
@@ -1923,7 +1958,46 @@ function selectTab(name) {
 }
 $$('[data-tab]').forEach(b => b.addEventListener('click', () => { selectTab(b.dataset.tab); renderAdmin(); }));
 
+/* ---------- Admin: Bestenliste des Spiels ---------- */
+const GAME_TEST_KEY = 'kastenmaennchen-spiel-test-bestenliste';
+const gameLevel = n => (n <= 13 ? `Klasse ${n}` : `Semester ${n - 13}`);
+const gameDate = iso => { try { return new Date(iso).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return ''; } };
+let gameLoading = false;
+async function loadGameAdmin() {
+  if (gameLoading) return;
+  gameLoading = true;
+  const msg = $('#g-msg'), list = $('#g-list');
+  msg.className = 'msg'; msg.textContent = 'Wird geladen …';
+  try {
+    const rows = await store.listGameScores();
+    msg.textContent = rows.length ? '' : 'Noch keine Einträge in der Bestenliste.';
+    list.replaceChildren(...rows.map(r => {
+      const del = el('button', { type: 'button', class: 'btn small danger', text: 'Löschen' });
+      armButton(del, 'Wirklich löschen?', async () => {
+        try {
+          await store.deleteGameScore(r);
+          toast(`„${r.spitzname}“ aus der Bestenliste gelöscht.`);
+          gameLoading = false;
+          await loadGameAdmin();
+        } catch (err) { toast(err.message, true); }
+      });
+      return el('div', { class: 'row no-img' },
+        el('div', {},
+          el('div', { class: 'r-name', text: r.spitzname }),
+          el('div', { class: 'r-meta', text: `${Number(r.punkte).toLocaleString('de-DE')} Punkte · ${gameLevel(r.stufe)} · ${gameDate(r.created_at)}` })),
+        el('div', { class: 'actions' }, del));
+    }));
+  } catch (e) {
+    list.replaceChildren();
+    msg.className = 'msg err';
+    msg.textContent = e.message || 'Die Bestenliste konnte nicht geladen werden.';
+  } finally {
+    gameLoading = false;
+  }
+}
+
 function renderAdmin() {
+  if (activeTab === 'spiel') loadGameAdmin();
   $('#starter').hidden = !(store.mode === 'live' && !editing && !state.figures.some(f => !f.is_community));
   const n = pending().length;
   $('#tab-pending').textContent = n ? `Einreichungen (${n})` : 'Einreichungen';
@@ -2183,8 +2257,8 @@ function renderLegal() {
 
     ${likesPrivacy()}
     <h3>Spiel „Glücksbringer-Prüfung“</h3>
-    <p>Spielst du die Glücksbringer-Prüfung (spiel.html), speichert dein Browser deine besten Runden, deine gewählte Spielfigur, die Ton-Einstellung und dein Sammelalbum im lokalen Speicher deines Browsers. Gespeichert wird erst, wenn du spielst oder etwas auswählst, und diese Daten verlassen deinen Browser nicht. Das ist für diese Funktionen unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG). Du kannst sie jederzeit löschen, indem du die Website-Daten in deinem Browser löschst.</p>
-    <p>Trägst du dich freiwillig in die Online-Bestenliste ein, speichern wir bei Supabase einen Spitznamen, der zufällig aus festen Wörtern zusammengesetzt ist (zum Beispiel „Mutiges Tintenfass 42“), deine Punkte, die erreichte Klasse, die Spieldauer und den Zeitpunkt. Einen echten Namen oder freien Text gibt es dabei nicht. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer gemeinsamen Bestenliste). Möchtest du einen Eintrag löschen lassen, schreib uns an ${mail()}.</p>
+    <p>Spielst du die Glücksbringer-Prüfung (spiel.html), speichert dein Browser deine besten Runden, deine gewählte Spielfigur, die Ton-Einstellung, dein Sammelalbum und den Namen, den du für die Bestenliste eingibst, im lokalen Speicher deines Browsers. Gespeichert wird erst, wenn du spielst oder etwas auswählst, und diese Daten verlassen deinen Browser nicht. Das ist für diese Funktionen unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG). Du kannst sie jederzeit löschen, indem du die Website-Daten in deinem Browser löschst.</p>
+    <p>Trägst du dich freiwillig in die Online-Bestenliste ein, speichern wir bei Supabase den Namen, den du dir aussuchst, deine Punkte, die erreichte Klasse, die Spieldauer und den Zeitpunkt. Den Namen sieht jeder, der die Bestenliste anschaut. Nimm deshalb bitte einen Spitznamen und nicht deinen echten Namen. Namen mit Schimpfwörtern, Links oder langen Zahlen nimmt die Bestenliste nicht an, und das Zeichenteam kann Einträge jederzeit löschen. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer gemeinsamen Bestenliste). Möchtest du einen Eintrag löschen lassen, schreib uns an ${mail()}.</p>
     <h3>Anmeldung für das Zeichenteam</h3>
     <p>Meldet sich jemand aus dem Zeichenteam als Admin an, speichert der Browser einen Anmelde-Schlüssel im lokalen Speicher. Das ist für die Anmeldung unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG).${likesOn() || (state.weekly && !state.loadError) ? '' : ' Beim bloßen Ansehen speichert die Seite bei Besucherinnen und Besuchern nichts im Browser.'}</p>
 
